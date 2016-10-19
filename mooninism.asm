@@ -108,7 +108,8 @@ ClearMem
     STA playerFaceDelay
 
     LDA #0
-    STA NUSIZ0    
+    STA NUSIZ0
+    STA REFP0
 
 ; -----------------------------------------------------------------------------
 
@@ -188,9 +189,9 @@ Position                        ; Coarse positioning loop
     DEX
     BNE Position
     STA RESP0                   ; Strobe RESP0
+    STA WSYNC
 
                                 ; Now do fine positioning adjustment
-    STA WSYNC
     LDA playerPosXCoarseFine
     AND #$F0                    ; Clear coarse positioning nibble
     STA HMP0
@@ -207,6 +208,7 @@ VBlankLoop
     ; Timer has expired but there's a good chance we'll be some way through a scanline
     ; here, so sit tight until we get to the end and then turn off the VBLANK
     STA WSYNC
+    STA HMOVE    
     STA VBLANK          ; End VBLANK period with the zero we have in the accumulator
 
 ; -----------------------------------------------------------------------------
@@ -221,7 +223,6 @@ VBlankLoop
 ;   
 
     LDY #192        ; Using Y register as scanline counter and counting off 192 scanlines
-    STA HMOVE    
 
     LDA #228
     STA TIM64T      ; 1 scanline = 228 color clocks
@@ -303,6 +304,46 @@ SkipPlayerDraw
 ;
 
 ;
+; Read joystick input and setup player movement/action vars
+;
+    LDA #0                      ; Clear player movement flag
+    STA playerSpriteMoving
+
+;
+; Horizontal motion check
+;
+HorizontalCheck
+    LDA #%10000000
+    BIT SWCHA
+    BEQ PlayerRight
+    LSR
+    BIT SWCHA
+    BEQ PlayerLeft
+    JMP VerticalCheck
+
+PlayerRight
+    LDX playerPosX
+    CPX (#SCREEN_WIDTH - #8)
+    BEQ HorizontalMove
+    
+    INX                         ; Increment X-position
+    INC playerSpriteMoving      ; Set player move flag
+    JMP HorizontalMove
+
+PlayerLeft
+    LDX playerPosX
+    CPX #0
+    BEQ HorizontalMove
+    
+    DEX                         ; Decrement Y-position
+    INC playerSpriteMoving      ; Set player move flag
+    JMP HorizontalMove
+
+HorizontalMove
+    STX playerPosX
+
+VerticalCheck
+;
 ;       -- DO STUFF HERE --
 ;
 
@@ -329,20 +370,20 @@ OverscanLoop
 
 
 ;
-; X-position lookup table
+; X-position coarse/fine value lookup table
 ;
 xPositionTable
-    .byte                       $34, $24, $14, $04, $F4, $E4, $D4, $C4, $B4, $A4, $94
-    .byte   $75, $65, $55, $45, $35, $25, $15, $05, $F5, $E5, $D5, $C5, $B5, $A5, $95
-    .byte   $76, $66, $56, $46, $36, $26, $16, $06, $F6, $E6, $D6, $C6, $B6, $A6, $96
-    .byte   $77, $67, $57, $47, $37, $27, $17, $07, $F7, $E7, $D7, $C7, $B7, $A7, $97
-    .byte   $78, $68, $58, $48, $38, $28, $18, $08, $F8, $E8, $D8, $C8, $B8, $A8, $98
-    .byte   $79, $69, $59, $49, $39, $29, $19, $09, $F9, $E9, $D9, $C9, $B9, $A9, $99
-    .byte   $7A, $6A, $5A, $4A, $3A, $2A, $1A, $0A, $FA, $EA, $DA, $CA, $BA, $AA, $9A
-    .byte   $7B, $6B, $5B, $4B, $3B, $2B, $1B, $0B, $FB, $EB, $DB, $CB, $BB, $AB, $9B
-    .byte   $7C, $6C, $5C, $4C, $3C, $2C, $1C, $0C, $FC, $EC, $DC, $CC, $BC, $AC, $9C
-    .byte   $7D, $6D, $5D, $4D, $3D, $2D, $1D, $0D, $FD, $ED, $DD, $CD, $BD, $AD, $9D
-    .byte   $7E, $6E, $5E, $4E, $3E, $2E, $1E, $0E, $FE, $EE, $DE, $CE, $BE, $AE
+    .byte                       $34, $24, $14, $04, $F4, $E4, $D4, $C4, $B4, $A4, $94   ; Pixels 0-10
+    .byte   $75, $65, $55, $45, $35, $25, $15, $05, $F5, $E5, $D5, $C5, $B5, $A5, $95   ; Pixels 11-25
+    .byte   $76, $66, $56, $46, $36, $26, $16, $06, $F6, $E6, $D6, $C6, $B6, $A6, $96   ; Pixels 26-40
+    .byte   $77, $67, $57, $47, $37, $27, $17, $07, $F7, $E7, $D7, $C7, $B7, $A7, $97   ; Pixels 41-55
+    .byte   $78, $68, $58, $48, $38, $28, $18, $08, $F8, $E8, $D8, $C8, $B8, $A8, $98   ; Pixels 56-70
+    .byte   $79, $69, $59, $49, $39, $29, $19, $09, $F9, $E9, $D9, $C9, $B9, $A9, $99   ; Pixels 71-85
+    .byte   $7A, $6A, $5A, $4A, $3A, $2A, $1A, $0A, $FA, $EA, $DA, $CA, $BA, $AA, $9A   ; Pixels 86-100
+    .byte   $7B, $6B, $5B, $4B, $3B, $2B, $1B, $0B, $FB, $EB, $DB, $CB, $BB, $AB, $9B   ; Pixels 101-115
+    .byte   $7C, $6C, $5C, $4C, $3C, $2C, $1C, $0C, $FC, $EC, $DC, $CC, $BC, $AC, $9C   ; Pixels 116-130
+    .byte   $7D, $6D, $5D, $4D, $3D, $2D, $1D, $0D, $FD, $ED, $DD, $CD, $BD, $AD, $9D   ; Pixels 131-145
+    .byte   $7E, $6E, $5E, $4E, $3E, $2E, $1E, $0E, $FE, $EE, $DE, $CE, $BE, $AE        ; Pixels 146-159
 
 
 ;
