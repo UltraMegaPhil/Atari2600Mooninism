@@ -343,9 +343,29 @@ HorizontalMove
     STX playerPosX
 
 VerticalCheck
-;
-;       -- DO STUFF HERE --
-;
+    LDA #%00100000
+    BIT SWCHA
+    BEQ PlayerDown
+    LSR
+    BIT SWCHA
+    BEQ PlayerUp
+    JMP OverscanLoop
+    
+PlayerDown
+    LDX playerPosY
+    CPX #ERR_SPRITE_HEIGHT + 2
+    BCC OverscanLoop
+    DEC playerPosY
+    INC playerSpriteMoving
+    JMP OverscanLoop
+    
+PlayerUp
+    LDX playerPosY
+    CPX #SCREEN_HEIGHT
+    BEQ OverscanLoop
+    INC playerPosY
+    INC playerSpriteMoving
+
 
 ;
 ; Once we've done our stuff, we are going to sit in a tight loop and wait for the timer
