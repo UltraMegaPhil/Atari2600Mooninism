@@ -56,8 +56,7 @@ playerSpriteCurrentLine         ds 1    ; The line we are currently drawing of t
 playerSpriteCurrentLineColor    ds 1    ; The color of the line we are currently drawing
 playerSpriteCurrentLineGraphic  ds 1    ;
 
-playerFaceDuration              ds 1    ; Duration (in frames) player sprite face is on screen
-playerFaceDelay                 ds 1    ;
+playerAnimationCounter          ds 1    ; How many frames through the player animation we are
 playerSpriteMoving              ds 1    ; Whether the player sprite is actually moving
 
 
@@ -104,8 +103,7 @@ ClearMem
     STA COLUPF
 
     LDA #ERR_SPRITE_FACE_DURATION
-    STA playerFaceDuration
-    STA playerFaceDelay
+    STA playerAnimationCounter
 
     LDA #0
     STA NUSIZ0
@@ -195,7 +193,7 @@ Position                        ; Coarse positioning loop
     LDA playerPosXCoarseFine
     AND #$F0                    ; Clear coarse positioning nibble
     STA HMP0
-
+    
 
 ;
 ; Once we've done our stuff, we are going to sit in a tight loop and wait for the timer
@@ -208,9 +206,10 @@ VBlankLoop
     ; Timer has expired but there's a good chance we'll be some way through a scanline
     ; here, so sit tight until we get to the end and then turn off the VBLANK
     STA WSYNC
-    STA HMOVE    
     STA VBLANK          ; End VBLANK period with the zero we have in the accumulator
 
+    STA WSYNC
+    STA HMOVE
 ; -----------------------------------------------------------------------------
 
 
@@ -270,9 +269,6 @@ SkipPlayerDraw
     LDA INTIM
     BNE ScanLoop
 
-
-    STA HMOVE
-
 ; -----------------------------------------------------------------------------
 
 
@@ -323,7 +319,7 @@ HorizontalCheck
 
 PlayerRight
     LDX playerPosX
-    CPX (#SCREEN_WIDTH - #8)
+    CPX (#SCREEN_WIDTH - #7)
     BEQ HorizontalMove
     
     INX                         ; Increment X-position
@@ -366,12 +362,12 @@ PlayerUp
     INC playerPosY
     INC playerSpriteMoving
 
-
 ;
 ; Once we've done our stuff, we are going to sit in a tight loop and wait for the timer
 ; to end
 ;
 OverscanLoop
+
     LDA INTIM           ; Load timer value into accumulator
     BNE OverscanLoop    ; Loop back if the timer value is not zero
 
